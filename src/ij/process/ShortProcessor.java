@@ -92,7 +92,6 @@ public class ShortProcessor extends ImageProcessor {
 			findMinAndMax();
 		boolean firstTime = pixels8==null;
 		boolean thresholding = minThreshold!=NO_THRESHOLD && lutUpdateMode<NO_LUT_UPDATE;
-		//ij.IJ.log("createImage: "+firstTime+"  "+lutAnimation+"  "+thresholding);
 		if (firstTime || !lutAnimation)
 			create8BitImage(thresholding&&lutUpdateMode==RED_LUT);
 		if (cm==null)

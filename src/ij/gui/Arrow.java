@@ -121,7 +121,6 @@ public class Arrow extends Line {
 			headShaftRatio = headLength/shaftLength;
 			if (headShaftRatio>1.0)
 				headShaftRatio = 1.0;
-			//IJ.log(headShaftRatio+" "+(int)shaftLength+" "+(int)headLength+" "+(int)tailx+" "+(int)taily+" "+(int)headtipx+" "+(int)headtipy);
 		}
 		path.moveTo(tailx, taily); // tail
 		path.lineTo(headbackx, headbacky); // head back

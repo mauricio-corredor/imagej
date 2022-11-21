@@ -59,6 +59,7 @@ public class Projector implements PlugIn {
 	private short[] zBuffer, cueZBuffer, countBuffer;
 	private int[] sumBuffer;
 	private boolean isRGB;
+	private boolean isX1, isX2;
 	private String label = "";
 	private boolean done;
 	private boolean batchMode = Interpreter.isBatchMode();
@@ -391,10 +392,10 @@ public class Projector implements PlugIn {
 			}
 			switch (axisOfRotation) {
 				case xAxis:
-					doOneProjectionX (nSlices, ycenter, zcenter,projwidth, projheight, costheta, sintheta);
+					doOneProjectionXY (nSlices, ycenter, zcenter,projwidth, projheight, costheta, sintheta, isX1);
 					break;
 				case yAxis:
-					doOneProjectionY (nSlices, xcenter, zcenter,projwidth, projheight, costheta, sintheta);
+					doOneProjectionXY (nSlices, xcenter, zcenter,projwidth, projheight, costheta, sintheta, isX2);
 					break;
 				case zAxis:
 					doOneProjectionZ (nSlices, xcenter, ycenter, zcenter, projwidth, projheight, costheta, sintheta);
@@ -426,8 +427,6 @@ public class Projector implements PlugIn {
 			}
 
 			theta = (theta + angleInc)%360;
-			//if (projections.getWindow()==null && IJ.getInstance()!=null && !batchMode)   // is "Projections" window still open?
-			//	{done=true; break;}
 			if (IJ.escapePressed()) {
 				done=true;
 				IJ.beep();
@@ -489,7 +488,7 @@ public class Projector implements PlugIn {
 	This procedure returns various buffers which are actually used by DoProjections() to find the final projected image for the volume
 	of slices at the current angle.
 	*/
-	private void doOneProjectionX (int nSlices, int ycenter, int zcenter, int projwidth, int projheight, int costheta, int sintheta) {
+	private void doOneProjectionXY (int nSlices, int center, int zcenter, int projwidth, int projheight, int costheta, int sintheta, boolean isX) {
 		int     thispixel;			//current pixel to be projected
 		int    offset, offsetinit;		//precomputed offsets into an image buffer
    		int z;					//z-coordinate of points in current slice before rotation
@@ -502,6 +501,7 @@ public class Projector implements PlugIn {
 		boolean MeanVal, BrightestPt;
 		int ysintheta, ycostheta;
 		int zsintheta, zcostheta, ysinthetainit, ycosthetainit;
+		int xsintheta, xcostheta, xsinthetainit, xcosthetainit;
 		byte[] pixels;
 		int projsize = projwidth * projheight;
 
@@ -517,9 +517,23 @@ public class Projector implements PlugIn {
 		OpacityAndNotNearestPt = ((opacity>0) && (projectionMethod!=nearestPoint));
 		MeanVal = (projectionMethod==meanValue);
 		BrightestPt = (projectionMethod==brightestPoint);
-		ycosthetainit = (top - ycenter - 1) * costheta;
-		ysinthetainit = (top - ycenter - 1) * sintheta;
+		if (isX){
+			
+			xcosthetainit = (top - center - 1) * costheta;
+			xsinthetainit = (top - center - 1) * sintheta;
+
+		}
+
+		
+			ycosthetainit = (top - center - 1) * costheta;
+			ysinthetainit = (top - center - 1) * sintheta;
+
+		
+
+			
 		offsetinit = ((projheight-bottom+top)/2) * projwidth + (projwidth - right + left)/2 - 1;
+
+
 
 		for (int k=1; k<=nSlices; k++) {
 			pixels = (byte[])stack.getPixels(k);
@@ -531,10 +545,9 @@ public class Projector implements PlugIn {
 		for (int j=top; j<bottom; j++) {
 			ycostheta += costheta;  //rotate about x-axis and find new y,z
 			ysintheta += sintheta;  //x-coordinates will not change
-			ynew = (ycostheta - zsintheta)/BIGPOWEROF2 + ycenter - top;
-			znew = (ysintheta + zcostheta)/BIGPOWEROF2 + zcenter;
+			ynew = (ycostheta - zsintheta)/BIGPOWEROF2 + center - top;
+			znew = (ysintheta + zcostheta)/BIGPOWEROF2 + center;
 			offset = offsetinit + ynew * projwidth;
-			//GetLine (BoundRect.left, j, width, theLine, Info->PicBaseAddr);
 			//read each pixel in current row and project it
 			int lineIndex = j*imageWidth;
 			for (int i=left; i<right; i++) {
@@ -585,102 +598,9 @@ public class Projector implements PlugIn {
 				} //for i (all pixels in row)
 			} // for j (all rows of BoundRect)
 		} // for k (all slices)
-	} //  doOneProjectionX()
+	} //  doOneProjectionXY()
 	
 
-	/** Projects each pixel of a volume (stack of slices) onto a plane as the volume rotates about the y-axis. */
-	private void  doOneProjectionY (int nSlices, int xcenter, int zcenter, int projwidth, int projheight, int costheta, int sintheta) {
-		int thispixel;			//current pixel to be projected
-		int offset, offsetinit;		//precomputed offsets into an image buffer
-		int z;					//z-coordinate of points in current slice before rotation
-  		int xnew, znew;			//y- and z-coordinates of current point after rotation
-		int zmax, zmin;			//z-coordinates of first and last slices before rotation
-  		int zmaxminuszmintimes100; //precomputed values to save time in loops
-		int c100minusDepthCueInt, c100minusDepthCueSurf;
-		boolean DepthCueIntLessThan100, DepthCueSurfLessThan100;
-		boolean OpacityOrNearestPt, OpacityAndNotNearestPt;
-		boolean MeanVal, BrightestPt;
-		int xsintheta, xcostheta;
-		int zsintheta, zcostheta, xsinthetainit, xcosthetainit;
-		byte[] pixels;
-		int projsize = projwidth * projheight;
-
-		//find z-coordinates of first and last slices
-		zmax = zcenter + projwidth/2;  
-		zmin = zcenter - projwidth/2;
-		zmaxminuszmintimes100 = 100 * (zmax-zmin);
-		c100minusDepthCueInt = 100 - depthCueInt;
-		c100minusDepthCueSurf = 100 - depthCueSurf;
-		DepthCueIntLessThan100 = (depthCueInt < 100);
-		DepthCueSurfLessThan100 = (depthCueSurf < 100);
-		OpacityOrNearestPt = ((projectionMethod==nearestPoint) || (opacity>0));
-		OpacityAndNotNearestPt = ((opacity>0) && (projectionMethod!=nearestPoint));
-		MeanVal = (projectionMethod==meanValue);
-		BrightestPt = (projectionMethod==brightestPoint);
-		xcosthetainit = (left - xcenter - 1) * costheta;
-		xsinthetainit = (left - xcenter - 1) * sintheta;
-		for (int k=1; k<=nSlices; k++) {
- 			pixels = (byte[])stack.getPixels(k);
-			z = (int)((k-1)*sliceInterval+0.5) - zcenter;
-			zcostheta = z * costheta;
-			zsintheta = z * sintheta;
-			offsetinit = ((projheight-bottom+top)/2) * projwidth +(projwidth - right + left)/2 - projwidth;
-			for (int j=top; j<bottom; j++) {
-				xcostheta = xcosthetainit;
-				xsintheta = xsinthetainit;
-				offsetinit += projwidth;
-				int lineOffset = j*imageWidth;
-				//read each pixel in current row and project it
-				for (int i=left; i<right; i++) {
-					thispixel =pixels[lineOffset+i]&0xff;
-					xcostheta += costheta;  //rotate about x-axis and find new y,z
-					xsintheta += sintheta;  //x-coordinates will not change
-					if ((thispixel <= transparencyUpper) && (thispixel >= transparencyLower)) {
-						xnew = (xcostheta + zsintheta)/BIGPOWEROF2 + xcenter - left;
-						znew = (zcostheta - xsintheta)/BIGPOWEROF2 + zcenter;
-						offset = offsetinit + xnew;
-						if ((offset>=projsize) || (offset<0))
-							offset = 0;
-						if (OpacityOrNearestPt) {
-							if (znew<zBuffer[offset]) {
-								zBuffer[offset] = (short)znew;
-								if (OpacityAndNotNearestPt) {
-									if (DepthCueSurfLessThan100)
-										opaArray[offset] = (byte)((depthCueSurf*thispixel/100 + 
-											c100minusDepthCueSurf*thispixel*(zmax-znew)/zmaxminuszmintimes100));
-									else
-										opaArray[offset] = (byte)thispixel;
-								} else {
-									if (DepthCueSurfLessThan100)
-										projArray[offset] = (byte)((depthCueSurf*thispixel/100 +
-											 c100minusDepthCueSurf*thispixel*(zmax-znew)/zmaxminuszmintimes100));
-									else
-										projArray[offset] = (byte)thispixel;
-								}
-							} // if (znew < zBuffer[offset])
-						} // if (OpacityOrNearestPt)
-						if (MeanVal) {
-							sumBuffer[offset] += thispixel;
-							countBuffer[offset]++;
-						} else if (BrightestPt) {
-							if (DepthCueIntLessThan100) {
-								if ((thispixel>(brightCueArray[offset]&0xff)) || (thispixel==(brightCueArray[offset]&0xff)) && (znew>cueZBuffer[offset])) {
-									brightCueArray[offset] = (byte)thispixel;  //use z-buffer to ensure that if depth-cueing is on,
-									cueZBuffer[offset] = (short)znew;       //the closer of two equally-bright points is displayed.
-									projArray[offset] = (byte)((depthCueInt*thispixel/100 +
-										c100minusDepthCueInt*thispixel*(zmax-znew)/zmaxminuszmintimes100));
-								}
-							} else {
-								if (thispixel > (projArray[offset]&0xff))
-									projArray[offset] = (byte)thispixel;
-							}
-						} // if  BrightestPt
-					} //end if thispixel in range
-				} // for i (all pixels in row)
-			} // for j (all rows)
-		} // for k (all slices)
-	} // DoOneProjectionY()
-	
 
 	/** Projects each pixel of a volume (stack of slices) onto a plane as the volume rotates about the z-axis. */
 	private void doOneProjectionZ (int nSlices, int xcenter, int ycenter, int zcenter, int projwidth, int projheight, int costheta, int sintheta) {

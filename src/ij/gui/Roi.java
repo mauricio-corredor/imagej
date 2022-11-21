@@ -110,6 +110,7 @@ public class Roi extends Object implements Cloneable, java.io.Serializable, Iter
 	protected boolean ignoreClipRect;
 	protected double flattenScale = 1.0;
 	protected static Color defaultColor;
+	protected MoveHandle mh;
 
 	private String name;
 	private int position;
@@ -851,7 +852,7 @@ public class Roi extends Object implements Cloneable, java.io.Serializable, Iter
 		} else if (state==MOVING)
 			move(previousSX, previousSY);       //move back to starting point
 		else if (state == MOVING_HANDLE)
-			moveHandle(previousSX, previousSY); //move handle back to starting point
+			mh.moveHandle(previousSX, previousSY); //move handle back to starting point
 		state = NORMAL;
 	}
 
@@ -922,203 +923,6 @@ public class Roi extends Object implements Cloneable, java.io.Serializable, Iter
 		oldY = y;
 		oldWidth = width;
 		oldHeight = height;
-	}
-
-	protected void moveHandle(int sx, int sy) {
-		double asp;
-		if (clipboard!=null) return;
-		int ox = ic.offScreenX2(sx);
-		int oy = ic.offScreenY2(sy);
-		if (ox<0) ox=0; if (oy<0) oy=0;
-		if (ox>xMax) ox=xMax; if (oy>yMax) oy=yMax;
-		int x1=x, y1=y, x2=x1+width, y2=y+height, xc=x+width/2, yc=y+height/2;
-		if (width > 7 && height > 7) {
-			asp = (double)width/(double)height;
-			asp_bk = asp;
-		} else
-			asp = asp_bk;
-
-		switch (activeHandle) {
-			case 0:
-				x=ox; y=oy;
-				break;
-			case 1:
-				y=oy;
-				break;
-			case 2:
-				x2=ox; y=oy;
-				break;
-			case 3:
-				x2=ox;
-				break;
-			case 4:
-				x2=ox; y2=oy;
-				break;
-			case 5:
-				y2=oy;
-				break;
-			case 6:
-				x=ox; y2=oy;
-				break;
-			case 7:
-				x=ox;
-				break;
-		}
-		if (x<x2)
-		   width=x2-x;
-		else
-		  {width=1; x=x2;}
-		if (y<y2)
-		   height = y2-y;
-		else
-		   {height=1; y=y2;}
-
-		if (center) {
-			switch (activeHandle){
-				case 0:
-					width=(xc-x)*2;
-					height=(yc-y)*2;
-					break;
-				case 1:
-					height=(yc-y)*2;
-					break;
-				case 2:
-					width=(x2-xc)*2;
-					x=x2-width;
-					height=(yc-y)*2;
-					break;
-				case 3:
-					width=(x2-xc)*2;
-					x=x2-width;
-					break;
-				case 4:
-					width=(x2-xc)*2;
-					x=x2-width;
-					height=(y2-yc)*2;
-					y=y2-height;
-					break;
-				case 5:
-					height=(y2-yc)*2;
-					y=y2-height;
-					break;
-				case 6:
-					width=(xc-x)*2;
-					height=(y2-yc)*2;
-					y=y2-height;
-					break;
-				case 7:
-					width=(xc-x)*2;
-					break;
-			}
-			if (x>=x2) {
-				width=1;
-				x=x2=xc;
-			}
-			if (y>=y2) {
-				height=1;
-				y=y2=yc;
-			}
-			bounds = null;
-		}
-
-		if (constrain) {
-			if (activeHandle==1 || activeHandle==5)
-				width=height;
-			else
-				height=width;
-
-			if(x>=x2) {
-				width=1;
-				x=x2=xc;
-			}
-			if (y>=y2) {
-				height=1;
-				y=y2=yc;
-			}
-			switch (activeHandle) {
-				case 0:
-					x=x2-width;
-					y=y2-height;
-					break;
-				case 1:
-					x=xc-width/2;
-					y=y2-height;
-					break;
-				case 2:
-					y=y2-height;
-					break;
-				case 3:
-					y=yc-height/2;
-					break;
-				case 5:
-					x=xc-width/2;
-					break;
-				case 6:
-					x=x2-width;
-					break;
-				case 7:
-					y=yc-height/2;
-					x=x2-width;
-					break;
-			}
-			if (center) {
-				x=xc-width/2;
-				y=yc-height/2;
-			}
-		}
-
-		if (aspect && !constrain) {
-			if (activeHandle==1 || activeHandle==5) width=(int)Math.rint((double)height*asp);
-			else height=(int)Math.rint((double)width/asp);
-
-			switch (activeHandle){
-				case 0:
-					x=x2-width;
-					y=y2-height;
-					break;
-				case 1:
-					x=xc-width/2;
-					y=y2-height;
-					break;
-				case 2:
-					y=y2-height;
-					break;
-				case 3:
-					y=yc-height/2;
-					break;
-				case 5:
-					x=xc-width/2;
-					break;
-				case 6:
-					x=x2-width;
-					break;
-				case 7:
-					y=yc-height/2;
-					x=x2-width;
-					break;
-			}
-			if (center) {
-				x=xc-width/2;
-				y=yc-height/2;
-			}
-
-			// Attempt to preserve aspect ratio when roi very small:
-			if (width<8) {
-				if(width<1) width = 1;
-				height=(int)Math.rint((double)width/asp_bk);
-			}
-			if (height<8) {
-				if(height<1) height =1;
-				width=(int)Math.rint((double)height*asp_bk);
-			}
-		}
-
-		updateClipRect();
-		imp.draw(clipX, clipY, clipWidth, clipHeight);
-		oldX=x; oldY=y;
-		oldWidth=width; oldHeight=height;
-		bounds = null;
-		subPixel = false;
 	}
 
 	void move(int sx, int sy) {
@@ -1274,7 +1078,7 @@ public class Roi extends Object implements Cloneable, java.io.Serializable, Iter
 				move(sx, sy);
 				break;
 			case MOVING_HANDLE:
-				moveHandle(sx, sy);
+				mh.moveHandle(sx, sy);
 				break;
 			default:
 				break;
@@ -2093,7 +1897,6 @@ public class Roi extends Object implements Cloneable, java.io.Serializable, Iter
 		double mag = ic.getMagnification();
 		if (mag!=1.0) {
 			float width = (float)(stroke.getLineWidth()*mag);
-			//return new BasicStroke(width, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL);
 			return new BasicStroke(width, stroke.getEndCap(), stroke.getLineJoin(), stroke.getMiterLimit(), stroke.getDashArray(), stroke.getDashPhase());
 		} else
 			return stroke;

@@ -49,6 +49,8 @@ public class HistogramPlot extends ImagePlus {
 	/** Plots a histogram using the specified title, number of bins and histogram range.
 		Currently, the number of bins must be 256 and the histogram range range must be 
 		the same as the image range expect for 32 bit images. */
+
+		
 	public void draw(ImagePlus imp, int bins, double histMin, double histMax, int yMax) {
 		boolean limitToThreshold = (Analyzer.getMeasurements()&LIMIT)!=0;
 		ImageProcessor ip = imp.getProcessor();
